@@ -43,6 +43,12 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
             "popSizes",
             "Deme population sizes.",
             Validate.REQUIRED);
+
+    public Input<RealParameter> rateMatrixScaleFactorInput = new Input<>("rateMatrixScaleFactor",
+            "Optional number by which all items in the migration matrix will be evenly multiplied.", Validate.REQUIRED);
+
+    public Input<RealParameter> popSizesScaleFactorInput = new Input<>("popSizesScaleFactor",
+            "Optional number by which all population sizes will be evenly multiplied.", Validate.REQUIRED);
     
     public Input<BooleanParameter> rateMatrixFlagsInput = new Input<>(
             "rateMatrixFlags",
@@ -51,6 +57,7 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
     
     protected RealParameter rateMatrix, popSizes;
     protected BooleanParameter rateMatrixFlags;
+    protected RealParameter rateMatrixScaleFactor, popSizesScaleFactor;
     protected double mu, muSym;
     protected int nTypes;
     protected DoubleMatrix Q, R;
@@ -80,6 +87,12 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
 
         if (rateMatrixFlagsInput.get() != null)
             rateMatrixFlags = rateMatrixFlagsInput.get();
+
+        if (rateMatrixScaleFactorInput.get() != null)
+            rateMatrixScaleFactor = rateMatrixScaleFactorInput.get();
+
+        if (popSizesScaleFactorInput.get() != null)
+            popSizesScaleFactor = popSizesScaleFactorInput.get();
 
         rateMatrix.setLower(Math.max(rateMatrix.getLower(), 0.0));
         popSizes.setLower(Math.max(popSizes.getLower(), 0.0));
@@ -209,10 +222,18 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
         
         int offset = getArrayOffset(i, j);
         if (rateMatrixFlagsInput.get() != null
-                && !rateMatrixFlagsInput.get().getValue(offset))
+                && !rateMatrixFlagsInput.get().getValue(offset)) {
             return 0.0;
-        else
-            return rateMatrix.getValue(offset);
+        }
+        else{
+            if (rateMatrixScaleFactorInput.get() != null) {
+                return rateMatrix.getValue(offset) * rateMatrixScaleFactorInput.get().getValue();
+            }
+            else {
+                return rateMatrix.getValue(offset);
+            }
+        }
+
     }
     
     /**
@@ -304,7 +325,12 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
      * @return Effective population size.
      */
     public double getPopSize(int i) {
-        return popSizes.getArrayValue(i);
+        if (popSizesScaleFactorInput.get() != null){
+            return popSizes.getArrayValue(i) * popSizesScaleFactorInput.get().getValue();
+        }
+        else{
+            return popSizes.getArrayValue(i);
+        }
     }
     
     /**
