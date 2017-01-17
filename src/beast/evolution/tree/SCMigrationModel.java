@@ -45,10 +45,10 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
             Validate.REQUIRED);
 
     public Input<RealParameter> rateMatrixScaleFactorInput = new Input<>("rateMatrixScaleFactor",
-            "Optional number by which all items in the migration matrix will be evenly multiplied.", Validate.REQUIRED);
+            "Optional number by which all items in the migration matrix will be evenly multiplied.");
 
     public Input<RealParameter> popSizesScaleFactorInput = new Input<>("popSizesScaleFactor",
-            "Optional number by which all population sizes will be evenly multiplied.", Validate.REQUIRED);
+            "Optional number by which all population sizes will be evenly multiplied.");
     
     public Input<BooleanParameter> rateMatrixFlagsInput = new Input<>(
             "rateMatrixFlags",
