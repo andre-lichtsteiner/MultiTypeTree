@@ -219,7 +219,12 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
         if (i==j)
             return 0;
 
-        return rateMatrix.getValue(getArrayOffset(i, j));
+        if(linearModelMatrixInput.get() != null){
+            return linearModelMatrix.getArrayValue(getArrayOffset(i, j));
+        }
+        else {
+            return rateMatrix.getValue(getArrayOffset(i, j));
+        }
         
     }
 
