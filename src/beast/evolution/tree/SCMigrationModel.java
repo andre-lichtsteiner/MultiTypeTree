@@ -36,10 +36,9 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
 
     public Input<RealParameter> rateMatrixInput = new Input<>(
             "rateMatrix",
-            "Migration rate matrix",
-            Validate.REQUIRED);
+            "Migration rate matrix");
 
-    public Input<LinearModelMatrix> linearModelMatrixInput = new Input<>("linearModel", "Optional way to use GLM to compare the rateMatrix provided with one where all rates are the same."); //Might be good to have Validate.XOR on this with rateMatrix
+    public Input<LinearModelMatrix> linearModelMatrixInput = new Input<>("linearModel", "Optional way to use GLM to compare the rateMatrix provided with one where all rates are the same.", Validate.XOR, rateMatrixInput); //Might be good to have Validate.XOR on this with rateMatrix
 
     public Input<RealParameter> popSizesInput = new Input<>(
             "popSizes",
@@ -87,48 +86,54 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
     @Override
     public void initAndValidate() {
 
-        if (linearModelMatrixInput != null){
-            linearModelMatrix = linearModelMatrixInput.get();
-            //This should now be used instead of rateMatrix wherever rateMatrix is used
-        }
-
         popSizes = popSizesInput.get();
         rateMatrix = rateMatrixInput.get();
         nTypes = popSizes.getDimension();
 
+        popSizes.setLower(Math.max(popSizes.getLower(), 0.0));
+
+
+        //Split depending on type of matrix model
         if (rateMatrixFlagsInput.get() != null)
             rateMatrixFlags = rateMatrixFlagsInput.get();
 
-        if (rateMatrixScaleFactorInput.get() != null)
-            rateMatrixScaleFactor = rateMatrixScaleFactorInput.get();
 
-        if (popSizesScaleFactorInput.get() != null)
-            popSizesScaleFactor = popSizesScaleFactorInput.get();
-
-        rateMatrix.setLower(Math.max(rateMatrix.getLower(), 0.0));
-        popSizes.setLower(Math.max(popSizes.getLower(), 0.0));
-        
-        if (rateMatrix.getDimension() == nTypes*nTypes) {
-            rateMatrixIsSquare = true;
-            symmetricRateMatrix = false;
-        } else {
-            if (rateMatrix.getDimension() != nTypes*(nTypes-1)) {
-                if (rateMatrix.getDimension() == nTypes*(nTypes-1)/2) {
-                    symmetricRateMatrix = true;
-                } else 
-                    throw new IllegalArgumentException("Migration matrix has "
-                            + "incorrect number of elements for given deme count.");
-            } else {
-                rateMatrixIsSquare = false;
-                symmetricRateMatrix = false;
-            }
+        if (linearModelMatrixInput != null){
+            linearModelMatrix = linearModelMatrixInput.get();
+            //This should now be used instead of rateMatrix wherever rateMatrix is used
         }
-        
-        if (rateMatrixFlags != null) {
-            if (rateMatrixFlags.getDimension() != rateMatrix.getDimension())
-                throw new IllegalArgumentException("Migration rate flags"
-                        + " array does not have same number of elements as"
-                        + " migration rate matrix.");
+        else {
+
+            if (rateMatrixScaleFactorInput.get() != null)
+                rateMatrixScaleFactor = rateMatrixScaleFactorInput.get();
+
+            if (popSizesScaleFactorInput.get() != null)
+                popSizesScaleFactor = popSizesScaleFactorInput.get();
+
+            rateMatrix.setLower(Math.max(rateMatrix.getLower(), 0.0));
+
+            if (rateMatrix.getDimension() == nTypes * nTypes) {
+                rateMatrixIsSquare = true;
+                symmetricRateMatrix = false;
+            } else {
+                if (rateMatrix.getDimension() != nTypes * (nTypes - 1)) {
+                    if (rateMatrix.getDimension() == nTypes * (nTypes - 1) / 2) {
+                        symmetricRateMatrix = true;
+                    } else
+                        throw new IllegalArgumentException("Migration matrix has "
+                                + "incorrect number of elements for given deme count.");
+                } else {
+                    rateMatrixIsSquare = false;
+                    symmetricRateMatrix = false;
+                }
+            }
+
+            if (rateMatrixFlags != null) {
+                if (rateMatrixFlags.getDimension() != rateMatrix.getDimension())
+                    throw new IllegalArgumentException("Migration rate flags"
+                            + " array does not have same number of elements as"
+                            + " migration rate matrix.");
+            }
         }
 
         dirty = true;
@@ -237,28 +242,11 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
             return 0.0;
         }
         else{
-
-
-
-
-            if (rateMatrixScaleFactorInput.get() != null) {
-                if (linearModelMatrixInput != null){
-                  //  System.out.println("Used getArrayValue from the linearModelMatrix");
-                    return linearModelMatrix.getArrayValue(offset) * rateMatrixScaleFactorInput.get().getValue(); //Not sure that the scaleFactor should always be used here? But perhaps it should?
-                }
-                else{
-                    return rateMatrix.getArrayValue(offset) * rateMatrixScaleFactorInput.get().getValue();
-                }
-
+            if (linearModelMatrixInput.get() != null){
+                return linearModelMatrix.getArrayValue(offset);
             }
-            else {
-                if (linearModelMatrixInput != null){
-                  //  System.out.println("Used getArrayValue from the linearModelMatrix");
-                    return linearModelMatrix.getArrayValue(offset);
-                }
-                else {
-                    return rateMatrix.getArrayValue(offset);
-                }
+            else{
+                return rateMatrix.getArrayValue(offset);
             }
         }
 
