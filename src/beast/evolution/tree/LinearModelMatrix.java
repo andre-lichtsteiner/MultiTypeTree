@@ -3,6 +3,7 @@ package beast.evolution.tree;
 import beast.core.BEASTObject;
 import beast.core.Function;
 import beast.core.Input;
+import beast.core.parameter.BooleanParameter;
 import beast.core.parameter.RealParameter;
 
 import java.util.ArrayList;
@@ -27,12 +28,12 @@ public class LinearModelMatrix extends BEASTObject implements Function {
 
     public Input<RealParameter> lambdaInput = new Input<>("lambdaParameter", "Specify a parameter with two starting values for lambda (the coefficient)", Input.Validate.REQUIRED);
 
-    public Input<RealParameter> deltaInput = new Input<>("deltaParameter", "Specify a parameter with two starting values for delta (the indicator variables)", Input.Validate.REQUIRED);
+    public Input<BooleanParameter> deltaInput = new Input<>("deltaParameter", "Specify a parameter with two starting values for delta (the indicator variables)", Input.Validate.REQUIRED);
 
     protected List<RealParameter> rateMatrices;
     protected List<RealParameter> rateMatricesScaleFactors;
     protected RealParameter lambdaParameter;
-    protected RealParameter deltaParameter;
+    protected BooleanParameter deltaParameter;
 
     public int getDimension(){
         return rateMatricesInput.get().size(); //Returns number of matrices provided
@@ -57,12 +58,17 @@ public class LinearModelMatrix extends BEASTObject implements Function {
         for (int i = 0; i < rateMatrices.size(); i++){ //For each matrix provided
             double lambda = lambdaParameter.getArrayValue(i);
             double delta = deltaParameter.getArrayValue(i);
+           // double delta = 0;
+            //if (deltaParameter.getArrayValue(i)){
+            //    delta = 1;
+           // }
 
             //Each matrix may have its own scaleFactor
             double scaleFactor = 1; //Leave this as 1 if no scaleFactor provided
             if (rateMatricesScaleFactorsInput.get() != null && rateMatricesScaleFactorsInput.get().size() != 0){
                 scaleFactor = rateMatricesScaleFactorsInput.get().get(i).getValue();
             }
+
 
             double term = lambda * delta * rateMatrices.get(i).getArrayValue(dim);
             totalValue = totalValue + term;
