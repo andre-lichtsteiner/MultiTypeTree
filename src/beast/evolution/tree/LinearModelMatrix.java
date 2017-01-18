@@ -1,6 +1,7 @@
 package beast.evolution.tree;
 
 import beast.core.BEASTObject;
+import beast.core.CalculationNode;
 import beast.core.Function;
 import beast.core.Input;
 import beast.core.parameter.BooleanParameter;
@@ -12,7 +13,7 @@ import java.util.List;
 /**
  * Created by andre on 18/01/17.
  */
-public class LinearModelMatrix extends BEASTObject implements Function {
+public class LinearModelMatrix extends CalculationNode implements Function {
 
 
     //Must provide the model which is to be compared with the flat model
@@ -73,8 +74,8 @@ public class LinearModelMatrix extends BEASTObject implements Function {
             double term = lambda * delta * rateMatrices.get(i).getArrayValue(dim);
             totalValue = totalValue + term;
         }
-       // return Math.exp(totalValue);
-        return totalValue;
+       return Math.exp(totalValue);
+        //return totalValue;
     }
 
     public void initAndValidate(){
