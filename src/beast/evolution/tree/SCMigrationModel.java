@@ -241,6 +241,7 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
 
             if (rateMatrixScaleFactorInput.get() != null) {
                 if (linearModelMatrixInput != null){
+                  //  System.out.println("Used getArrayValue from the linearModelMatrix");
                     return linearModelMatrix.getArrayValue(offset) * rateMatrixScaleFactorInput.get().getValue(); //Not sure that the scaleFactor should always be used here? But perhaps it should?
                 }
                 else{
@@ -250,6 +251,7 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
             }
             else {
                 if (linearModelMatrixInput != null){
+                  //  System.out.println("Used getArrayValue from the linearModelMatrix");
                     return linearModelMatrix.getArrayValue(offset);
                 }
                 else {
