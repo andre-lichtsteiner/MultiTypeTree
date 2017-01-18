@@ -54,8 +54,12 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
             "rateMatrixFlags",
             "Optional boolean parameter specifying which rates to use."
             + " (Default is to use all rates.)");
-    
+
+
+    public Input<LinearModelMatrix> linearModelMatrixInput = new Input<>("linearModel", "Optional way to use GLM to compare the rateMatrix provided with one where all rates are the same.");
+
     protected RealParameter rateMatrix, popSizes;
+    protected LinearModelMatrix linearModelMatrix;
     protected BooleanParameter rateMatrixFlags;
     protected RealParameter rateMatrixScaleFactor, popSizesScaleFactor;
     protected double mu, muSym;
@@ -80,7 +84,12 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
 
     @Override
     public void initAndValidate() {
-        
+
+        if (linearModelMatrixInput != null){
+            linearModelMatrix = linearModelMatrixInput.get();
+            //This should now be used instead of rateMatrix wherever rateMatrix is used
+        }
+
         popSizes = popSizesInput.get();
         rateMatrix = rateMatrixInput.get();
         nTypes = popSizes.getDimension();
@@ -226,11 +235,26 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
             return 0.0;
         }
         else{
+
+
+
+
             if (rateMatrixScaleFactorInput.get() != null) {
-                return rateMatrix.getArrayValue(offset) * rateMatrixScaleFactorInput.get().getValue();
+                if (linearModelMatrixInput != null){
+                    return linearModelMatrix.getArrayValue(offset) * rateMatrixScaleFactorInput.get().getValue(); //Not sure that the scaleFactor should always be used here? But perhaps it should?
+                }
+                else{
+                    return rateMatrix.getArrayValue(offset) * rateMatrixScaleFactorInput.get().getValue();
+                }
+
             }
             else {
-                return rateMatrix.getArrayValue(offset);
+                if (linearModelMatrixInput != null){
+                    return linearModelMatrix.getArrayValue(offset);
+                }
+                else {
+                    return rateMatrix.getArrayValue(offset);
+                }
             }
         }
 
