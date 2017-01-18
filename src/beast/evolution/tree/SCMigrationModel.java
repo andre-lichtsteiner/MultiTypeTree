@@ -227,10 +227,10 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
         }
         else{
             if (rateMatrixScaleFactorInput.get() != null) {
-                return rateMatrix.getValue(offset) * rateMatrixScaleFactorInput.get().getValue();
+                return rateMatrix.getArrayValue(offset) * rateMatrixScaleFactorInput.get().getValue();
             }
             else {
-                return rateMatrix.getValue(offset);
+                return rateMatrix.getArrayValue(offset);
             }
         }
 
