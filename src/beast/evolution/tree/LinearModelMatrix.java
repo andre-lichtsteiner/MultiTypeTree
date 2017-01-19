@@ -70,7 +70,6 @@ public class LinearModelMatrix extends CalculationNode implements Function {
                 scaleFactor = rateMatricesScaleFactorsInput.get().get(i).getValue();
             }
 
-
             double term = lambda * delta * Math.log(rateMatrices.get(i).getArrayValue(dim)) * scaleFactor;
             totalValue = totalValue + term;
         }
