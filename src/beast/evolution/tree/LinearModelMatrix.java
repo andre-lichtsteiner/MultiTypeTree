@@ -45,6 +45,7 @@ public class LinearModelMatrix extends CalculationNode implements Function {
         return rateMatricesInput.get().size(); //Need to determine what I should return here *TODO-----
     }
 
+
     @Override
     public double getArrayValue(int dim) {
         //Do some things here to change the
@@ -58,11 +59,7 @@ public class LinearModelMatrix extends CalculationNode implements Function {
 
         for (int i = 0; i < rateMatrices.size(); i++){ //For each matrix provided
             double lambda = lambdaParameter.getArrayValue(i);
-            double delta = deltaParameter.getArrayValue(i);
-            // double delta = 0;
-            //if (deltaParameter.getArrayValue(i)){
-            //    delta = 1;
-            // }
+            double delta = deltaParameter.getArrayValue(i); //getArrayValue of boolean parameter returns a double
 
             //Each matrix may have its own scaleFactor
             double scaleFactor = 1; //Leave this as 1 if no scaleFactor provided
@@ -70,11 +67,15 @@ public class LinearModelMatrix extends CalculationNode implements Function {
                 scaleFactor = rateMatricesScaleFactorsInput.get().get(i).getValue();
             }
 
-            double term = lambda * delta * Math.log(rateMatrices.get(i).getArrayValue(dim)) * scaleFactor;
+            double term = lambda * delta * Math.log(rateMatrices.get(i).getArrayValue(dim)) * scaleFactor; //note that more generally we probably want the log transform to be done at a different stage
             totalValue = totalValue + term;
         }
         return Math.exp(totalValue);
-        //return totalValue;
+    }
+
+    public RealParameter getMatrix(int index){
+        return rateMatrices.get(index);
+
     }
 
     public void initAndValidate(){
@@ -95,6 +96,14 @@ public class LinearModelMatrix extends CalculationNode implements Function {
             System.out.println("If you are using scaleFactors for a rateMatrix, you must provide the LinearModelMatrix with a rateMatrixScaleFactor for each of the rate matrices you provide.");
             throw new IndexOutOfBoundsException("Wrong number of rateMatrixScaleFactor values provided for LinearModelMatrix");
         }
+
+        
+        //Do the things which are usually done for rateMatrix in SCMigrationModel
+
+        for (int i = 0; i < rateMatrices.size(); i++){
+            rateMatrices.get(i).setLower(Math.max(rateMatrices.get(i).getLower(), 0.0));
+        }
+       
 
 
     }
