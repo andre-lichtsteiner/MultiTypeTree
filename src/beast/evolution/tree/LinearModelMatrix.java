@@ -105,6 +105,6 @@ public class LinearModelMatrix extends CalculationNode implements Function {
         }
        
 
-
+        System.out.println("Successfully initialised LinearModelMatrix.");
     }
 }
