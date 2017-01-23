@@ -34,8 +34,10 @@ public class LinearModelMatrix extends CalculationNode implements Function {
     public Input<BooleanParameter> deltaInput = new Input<>("deltaParameter", "Specify a parameter with two starting values for delta (the indicator variables)", Input.Validate.REQUIRED);
 
     protected List<RealParameter> rateMatrices;
+    protected boolean needsUpdate;
     //protected List<RealParameter> rateMatricesScaleFactors;
     protected RealParameter lambdaParameter;
+    protected RealParameter oldLambdaParameter;
     protected BooleanParameter deltaParameter;
 
     public int getDimension(){
@@ -50,23 +52,22 @@ public class LinearModelMatrix extends CalculationNode implements Function {
 
     @Override
     public double getArrayValue(int dim) {
-        //Do some things here to change the
-        //Get the latest values for the delta and lambda parameters
-        lambdaParameter = lambdaInput.get();
-        deltaParameter = deltaInput.get();
+        if(needsUpdate) {
+            //Get the latest values for the delta and lambda parameters, relying on requiresRecalculation to manage when this is done (via needsUpdate)
+            lambdaParameter = lambdaInput.get();
+            deltaParameter = deltaInput.get();
 
-
-
+        }
         double totalValue = 0;
 
-        for (int i = 0; i < rateMatrices.size(); i++){ //For each matrix provided
+        for (int i = 0; i < rateMatrices.size(); i++) { //For each matrix provided
             double lambda = lambdaParameter.getArrayValue(i);
             double delta = deltaParameter.getArrayValue(i); //getArrayValue of boolean parameter returns a double
 
             //Each matrix may have its own scaleFactor
             //double scaleFactor = 1; //Leave this as 1 if no scaleFactor provided
             //if (rateMatricesScaleFactorsInput.get() != null && rateMatricesScaleFactorsInput.get().size() != 0){
-             //   scaleFactor = rateMatricesScaleFactorsInput.get().get(i).getValue();
+            //   scaleFactor = rateMatricesScaleFactorsInput.get().get(i).getValue();
             //}
 
             double term = lambda * delta * Math.log(rateMatrices.get(i).getArrayValue(dim)); //  * scaleFactor; //note that more generally we probably want the log transform to be done at a different stage
@@ -84,6 +85,8 @@ public class LinearModelMatrix extends CalculationNode implements Function {
         //Setup initial state of this Function
 
         rateMatrices = rateMatricesInput.get();
+        lambdaParameter = lambdaInput.get();
+        deltaParameter = deltaInput.get();
         //rateMatricesScaleFactors = rateMatricesScaleFactorsInput.get();
 
 
@@ -101,7 +104,8 @@ public class LinearModelMatrix extends CalculationNode implements Function {
         }
         */
 
-        
+
+
         //Do the things which are usually done for rateMatrix in SCMigrationModel
 
         for (int i = 0; i < rateMatrices.size(); i++){
@@ -111,4 +115,21 @@ public class LinearModelMatrix extends CalculationNode implements Function {
 
         System.out.println("Successfully initialised LinearModelMatrix.");
     }
+
+    @Override
+    public boolean requiresRecalculation(){
+        if (lambdaInput.get().somethingIsDirty()){
+            needsUpdate = true;
+            return true;
+        }
+        if(deltaInput.get().somethingIsDirty()){
+            needsUpdate = true;
+            return true;
+        }
+
+        return false;
+    }
+
+
+
 }
