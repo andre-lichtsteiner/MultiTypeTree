@@ -260,9 +260,10 @@ H12ESR01860_2012.641095890411_Capital-and-Coast=2012.641095890411</trait>
 				-->
 
 					<!-- <parameter name="rateMatrixScaleFactor" idref="rateMatrixScaleFactor"/> -->
+					<!--
 					<parameter dimension="1" name="rateMatrixScaleFactor" idref="rateMatrixScaleFactor"></parameter>
 					<parameter dimension="1" name="rateMatrixScaleFactor" idref="rateMatrixScaleFactor.2"></parameter>
-
+				-->
 					
 					<parameter name="deltaParameter" idref="deltaParameter.1"/>
 					<parameter name="lambdaParameter" idref="lambdaParameter.1"/>

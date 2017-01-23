@@ -22,9 +22,11 @@ public class LinearModelMatrix extends CalculationNode implements Function {
             "Migration rate matrices",
             new ArrayList<RealParameter>(), Input.Validate.REQUIRED);
 
+    /*
     public Input<List<RealParameter>> rateMatricesScaleFactorsInput = new Input<>("rateMatrixScaleFactor",
             "Optional number by which all items in the migration matrix will be evenly multiplied.", new ArrayList<RealParameter>());
     //List of rateMatrix scale factors
+    */
 
 
     public Input<RealParameter> lambdaInput = new Input<>("lambdaParameter", "Specify a parameter with two starting values for lambda (the coefficient)", Input.Validate.REQUIRED);
@@ -32,7 +34,7 @@ public class LinearModelMatrix extends CalculationNode implements Function {
     public Input<BooleanParameter> deltaInput = new Input<>("deltaParameter", "Specify a parameter with two starting values for delta (the indicator variables)", Input.Validate.REQUIRED);
 
     protected List<RealParameter> rateMatrices;
-    protected List<RealParameter> rateMatricesScaleFactors;
+    //protected List<RealParameter> rateMatricesScaleFactors;
     protected RealParameter lambdaParameter;
     protected BooleanParameter deltaParameter;
 
@@ -62,12 +64,12 @@ public class LinearModelMatrix extends CalculationNode implements Function {
             double delta = deltaParameter.getArrayValue(i); //getArrayValue of boolean parameter returns a double
 
             //Each matrix may have its own scaleFactor
-            double scaleFactor = 1; //Leave this as 1 if no scaleFactor provided
-            if (rateMatricesScaleFactorsInput.get() != null && rateMatricesScaleFactorsInput.get().size() != 0){
-                scaleFactor = rateMatricesScaleFactorsInput.get().get(i).getValue();
-            }
+            //double scaleFactor = 1; //Leave this as 1 if no scaleFactor provided
+            //if (rateMatricesScaleFactorsInput.get() != null && rateMatricesScaleFactorsInput.get().size() != 0){
+             //   scaleFactor = rateMatricesScaleFactorsInput.get().get(i).getValue();
+            //}
 
-            double term = lambda * delta * Math.log(rateMatrices.get(i).getArrayValue(dim)) * scaleFactor; //note that more generally we probably want the log transform to be done at a different stage
+            double term = lambda * delta * Math.log(rateMatrices.get(i).getArrayValue(dim)); //  * scaleFactor; //note that more generally we probably want the log transform to be done at a different stage
             totalValue = totalValue + term;
         }
         return Math.exp(totalValue);
@@ -82,7 +84,7 @@ public class LinearModelMatrix extends CalculationNode implements Function {
         //Setup initial state of this Function
 
         rateMatrices = rateMatricesInput.get();
-        rateMatricesScaleFactors = rateMatricesScaleFactorsInput.get();
+        //rateMatricesScaleFactors = rateMatricesScaleFactorsInput.get();
 
 
         //Check that the XML file provides one (and only one) value for both the lambda and delta parameters for each of the matrices provided. If not, cannot proceed.
@@ -91,11 +93,13 @@ public class LinearModelMatrix extends CalculationNode implements Function {
             throw new IndexOutOfBoundsException("Wrong number of values provided to lambdaParameter or deltaParameter for LinearModelMatrix");
         }
 
+        /*
         //Check that if there are any rateMatricesScaleFactors provided, that there are the right number of them
         if(rateMatricesScaleFactorsInput.get() != null && rateMatricesScaleFactorsInput.get().size() != 0 && rateMatricesScaleFactorsInput.get().size() != rateMatricesInput.get().size()){
             System.out.println("If you are using scaleFactors for a rateMatrix, you must provide the LinearModelMatrix with a rateMatrixScaleFactor for each of the rate matrices you provide.");
             throw new IndexOutOfBoundsException("Wrong number of rateMatrixScaleFactor values provided for LinearModelMatrix");
         }
+        */
 
         
         //Do the things which are usually done for rateMatrix in SCMigrationModel
