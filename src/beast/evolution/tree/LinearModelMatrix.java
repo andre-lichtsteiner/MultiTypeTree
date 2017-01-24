@@ -7,8 +7,6 @@ import beast.core.Input;
 import beast.core.parameter.BooleanParameter;
 import beast.core.parameter.RealParameter;
 
-import java.io.FileOutputStream;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -38,7 +36,9 @@ public class LinearModelMatrix extends CalculationNode implements Function {
 
     public Input<BooleanParameter> deltaInput = new Input<>("deltaParameter", "Specify a parameter with two starting values for delta (the indicator variables)", Input.Validate.REQUIRED);
 
+    protected int numTimes;
     protected List<RealParameter> rateMatricesTemp;
+    protected Double[] cachedTotalMatrix;
     protected ArrayList<ArrayList<Double>> rateMatricesKeep;
     protected boolean needsUpdate;
     //protected List<RealParameter> rateMatricesScaleFactors;
@@ -60,16 +60,53 @@ public class LinearModelMatrix extends CalculationNode implements Function {
 
     @Override
     public double getArrayValue(int dim) {
+        //New setup with caching
+       // System.out.println("Get Array Value");
         if(needsUpdate) {
+           // System.out.println(" -+-+-+-+--+-+-+-+-+-+-+-+-+-+-+-+-+   Had to do maths  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-");
             //Get the latest values for the delta and lambda parameters, relying on requiresRecalculation to manage when this is done (via needsUpdate)
             lambdaParameter = lambdaInput.get();
             deltaParameter = deltaInput.get();
+            needsUpdate = false; //Because now updated
+
+            ArrayList<Double> tempList = new ArrayList<>();
+
+            for(int elementIndex = 0; elementIndex < rateMatricesKeep.get(0).size(); elementIndex++){
+
+                double totalElementValue = 0;
+
+                for(int matrixIndex = 0; matrixIndex < rateMatricesKeep.size(); matrixIndex++){
+
+                    double delta = deltaParameter.getArrayValue(matrixIndex);
+
+                    if(deltaParameter.getArrayValue(matrixIndex) != 0){
+                        double term = lambdaParameter.getArrayValue(matrixIndex) * delta * rateMatricesKeep.get(matrixIndex).get(dim); //  * scaleFactor; //note that more generally we probably want the log transform to be done at a different stage
+                        totalElementValue = totalElementValue + term;
+                    }
+                }
+                tempList.add(Math.exp(totalElementValue));
+            }
+            cachedTotalMatrix = new Double[tempList.size()];
+           tempList.toArray(cachedTotalMatrix);
+
+
+        }
+        return cachedTotalMatrix[dim].doubleValue();
+
+
+        /*
+        numTimes++;
+        System.out.println(numTimes);
+
+        if(needsUpdate) {
+            //Get the latest values for the delta and lambda parameters, relying on requiresRecalculation to manage when this is done (via needsUpdate)
+            System.out.println("Needs update");
+            lambdaParameter = lambdaInput.get();
+            deltaParameter = deltaInput.get();
+            needsUpdate = false; //Because now sorted
 
         }
         double totalValue = 0;
-
-
-       // long timeBefore = System.currentTimeMillis();
 
         for (int i = 0; i < rateMatricesKeep.size(); i++) { //For each matrix provided
             double lambda = lambdaParameter.getArrayValue(i);
@@ -86,22 +123,13 @@ public class LinearModelMatrix extends CalculationNode implements Function {
 
             totalValue = totalValue + term;
         }
-    /*
-        long timeAfter = System.currentTimeMillis();
-        long timeDifference = timeAfter - timeBefore;
-        calcTimeCount++;
-        calcTiming = calcTiming + "Time: " + timeDifference + "\n";
-        if (calcTimeCount == 10){
-            calcTimeCount = 0;
-            System.err.println(calcTiming);
-        }
-       */
 
         return Math.exp(totalValue);
+        */
     }
 
     public RealParameter getMatrix(int index){
-        System.out.println("GETTING THE WRONG MATRIX HERE FOR NOW");
+        System.out.println("GETTING THE WRONG MATRIX HERE FOR NOW"); //Probably fine (mostly) because currently only used for working out if the matrix is square
         return rateMatricesTemp.get(index);
     }
 
@@ -113,9 +141,6 @@ public class LinearModelMatrix extends CalculationNode implements Function {
         lambdaParameter = lambdaInput.get();
         deltaParameter = deltaInput.get();
         //rateMatricesScaleFactors = rateMatricesScaleFactorsInput.get();
-
-        //calcTimeCount = 0;
-        //calcTiming = "";
 
         //Check that the XML file provides one (and only one) value for both the lambda and delta parameters for each of the matrices provided. If not, cannot proceed.
         if (lambdaInput.get().getDimension() != rateMatricesInput.get().size() || deltaInput.get().getDimension() != rateMatricesInput.get().size()){
@@ -172,30 +197,14 @@ public class LinearModelMatrix extends CalculationNode implements Function {
         }
         */
 
-
-
         //Do the things which are usually done for rateMatrix in SCMigrationModel
 
         /*
-
         for (int i = 0; i < rateMatrices.size(); i++){
             rateMatrices.get(i).setLower(Math.max(rateMatrices.get(i).getLower(), 0.0));
         }
         */
-
-
-
-        /*
-        //For testing the time taken on calculations
-        try {
-            System.setErr(new PrintStream(new FileOutputStream("calctime.txt")));
-        }
-        catch (Exception e){
-            System.out.println("Couldn't set up calculation timing");
-        }
-        */
-
-
+        needsUpdate = true;
         System.out.println("Successfully initialised LinearModelMatrix.");
     }
 

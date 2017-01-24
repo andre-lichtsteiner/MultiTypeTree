@@ -100,10 +100,7 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
             popSizesScaleFactor = popSizesScaleFactorInput.get();
         }
 
-
         //Split depending on type of matrix model
-
-
 
         if (linearModelMatrixInput.get() != null){
             linearModelMatrix = linearModelMatrixInput.get();
@@ -129,13 +126,10 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
 
         }
         else {
-
-
             rateMatrix = rateMatrixInput.get();
 
             if (rateMatrixScaleFactorInput.get() != null)
                 rateMatrixScaleFactor = rateMatrixScaleFactorInput.get();
-
 
             if (rateMatrix.getDimension() == nTypes * nTypes) {
                 rateMatrixIsSquare = true;
