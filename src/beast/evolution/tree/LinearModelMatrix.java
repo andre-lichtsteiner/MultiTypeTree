@@ -7,6 +7,8 @@ import beast.core.Input;
 import beast.core.parameter.BooleanParameter;
 import beast.core.parameter.RealParameter;
 
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,6 +24,9 @@ public class LinearModelMatrix extends CalculationNode implements Function {
             "Migration rate matrices",
             new ArrayList<RealParameter>(), Input.Validate.REQUIRED);
 
+    public Input<BooleanParameter> logTransformInput = new Input<>("logTransform", "Optional parameter, if set to 1, then the values in the rateMatrix will be log transformed before use. If this is not done, then the provided values need to already be log transformed.");
+
+
     /*
     public Input<List<RealParameter>> rateMatricesScaleFactorsInput = new Input<>("rateMatrixScaleFactor",
             "Optional number by which all items in the migration matrix will be evenly multiplied.", new ArrayList<RealParameter>());
@@ -33,12 +38,15 @@ public class LinearModelMatrix extends CalculationNode implements Function {
 
     public Input<BooleanParameter> deltaInput = new Input<>("deltaParameter", "Specify a parameter with two starting values for delta (the indicator variables)", Input.Validate.REQUIRED);
 
-    protected List<RealParameter> rateMatrices;
+    protected List<RealParameter> rateMatricesTemp;
+    protected ArrayList<ArrayList<Double>> rateMatricesKeep;
     protected boolean needsUpdate;
     //protected List<RealParameter> rateMatricesScaleFactors;
     protected RealParameter lambdaParameter;
     protected RealParameter oldLambdaParameter;
     protected BooleanParameter deltaParameter;
+    //protected String calcTiming;
+    //protected int calcTimeCount;
 
     public int getDimension(){
         return rateMatricesInput.get().size(); //Returns number of matrices provided
@@ -60,7 +68,10 @@ public class LinearModelMatrix extends CalculationNode implements Function {
         }
         double totalValue = 0;
 
-        for (int i = 0; i < rateMatrices.size(); i++) { //For each matrix provided
+
+       // long timeBefore = System.currentTimeMillis();
+
+        for (int i = 0; i < rateMatricesKeep.size(); i++) { //For each matrix provided
             double lambda = lambdaParameter.getArrayValue(i);
             double delta = deltaParameter.getArrayValue(i); //getArrayValue of boolean parameter returns a double
 
@@ -70,30 +81,87 @@ public class LinearModelMatrix extends CalculationNode implements Function {
             //   scaleFactor = rateMatricesScaleFactorsInput.get().get(i).getValue();
             //}
 
-            double term = lambda * delta * Math.log(rateMatrices.get(i).getArrayValue(dim)); //  * scaleFactor; //note that more generally we probably want the log transform to be done at a different stage
+            double term = lambda * delta * rateMatricesKeep.get(i).get(dim); //  * scaleFactor; //note that more generally we probably want the log transform to be done at a different stage
+
+
             totalValue = totalValue + term;
         }
+    /*
+        long timeAfter = System.currentTimeMillis();
+        long timeDifference = timeAfter - timeBefore;
+        calcTimeCount++;
+        calcTiming = calcTiming + "Time: " + timeDifference + "\n";
+        if (calcTimeCount == 10){
+            calcTimeCount = 0;
+            System.err.println(calcTiming);
+        }
+       */
+
         return Math.exp(totalValue);
     }
 
     public RealParameter getMatrix(int index){
-        return rateMatrices.get(index);
-
+        System.out.println("GETTING THE WRONG MATRIX HERE FOR NOW");
+        return rateMatricesTemp.get(index);
     }
 
     public void initAndValidate(){
         //Setup initial state of this Function
 
-        rateMatrices = rateMatricesInput.get();
+        rateMatricesTemp = rateMatricesInput.get();
+        rateMatricesKeep = new ArrayList<ArrayList<Double>>();
         lambdaParameter = lambdaInput.get();
         deltaParameter = deltaInput.get();
         //rateMatricesScaleFactors = rateMatricesScaleFactorsInput.get();
 
+        //calcTimeCount = 0;
+        //calcTiming = "";
 
         //Check that the XML file provides one (and only one) value for both the lambda and delta parameters for each of the matrices provided. If not, cannot proceed.
         if (lambdaInput.get().getDimension() != rateMatricesInput.get().size() || deltaInput.get().getDimension() != rateMatricesInput.get().size()){
             System.out.println("You must provide the LinearModelMatrix with one value for both the lambdaParameter and the deltaParameter for each of the rate matrices you provide.");
             throw new IndexOutOfBoundsException("Wrong number of values provided to lambdaParameter or deltaParameter for LinearModelMatrix");
+        }
+
+        if(logTransformInput.get() != null){
+            //This has been set in the XML by the user
+            if(logTransformInput.get().getDimension() != rateMatricesInput.get().size()){
+                System.out.println("You must provide the LinearModelMatrix with one value for logTransform each of the rate matrices you provide.");
+                throw new IndexOutOfBoundsException("Wrong number of values provided to logTransform for LinearModelMatrix");
+            }
+            else{
+                for (int i = 0; i < logTransformInput.get().getDimension(); i++){
+                    //For each matrix
+                    ArrayList<Double> current_matrix = new ArrayList<Double>();
+
+                    if(logTransformInput.get().getArrayValue(i) == 1){
+                        //If told to do an initial log transform
+                        for (int j = 0; j < rateMatricesTemp.get(i).getDimension(); j++){
+                            current_matrix.add(Math.log(rateMatricesTemp.get(i).getArrayValue(j)));
+                        }
+                    }
+                    else{
+                        //If NOT told to do an initial log transform
+                        for (int j = 0; j < rateMatricesTemp.get(i).getDimension(); j++){
+                            current_matrix.add(rateMatricesTemp.get(i).getArrayValue(j));
+                        }
+                    }
+
+
+                    rateMatricesKeep.add(current_matrix);
+
+
+                }
+            }
+        }
+        else{
+
+            for (int i = 0; i < rateMatricesTemp.size(); i++) {
+                ArrayList<Double> current_matrix = new ArrayList<Double>();
+                for (int j = 0; j < rateMatricesTemp.get(i).getDimension(); j++) {
+                    current_matrix.add(rateMatricesTemp.get(i).getArrayValue(j));
+                }
+            }
         }
 
         /*
@@ -108,10 +176,25 @@ public class LinearModelMatrix extends CalculationNode implements Function {
 
         //Do the things which are usually done for rateMatrix in SCMigrationModel
 
+        /*
+
         for (int i = 0; i < rateMatrices.size(); i++){
             rateMatrices.get(i).setLower(Math.max(rateMatrices.get(i).getLower(), 0.0));
         }
-       
+        */
+
+
+
+        /*
+        //For testing the time taken on calculations
+        try {
+            System.setErr(new PrintStream(new FileOutputStream("calctime.txt")));
+        }
+        catch (Exception e){
+            System.out.println("Couldn't set up calculation timing");
+        }
+        */
+
 
         System.out.println("Successfully initialised LinearModelMatrix.");
     }

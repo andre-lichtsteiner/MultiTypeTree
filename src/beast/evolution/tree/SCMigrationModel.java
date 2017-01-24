@@ -40,6 +40,8 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
 
     public Input<LinearModelMatrix> linearModelMatrixInput = new Input<>("linearModel", "Optional way to use GLM to compare the rateMatrix provided with one where all rates are the same.", Validate.XOR, rateMatrixInput); //Might be good to have Validate.XOR on this with rateMatrix
 
+
+
     public Input<RealParameter> popSizesInput = new Input<>(
             "popSizes",
             "Deme population sizes.",
