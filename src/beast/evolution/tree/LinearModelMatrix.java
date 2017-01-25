@@ -24,29 +24,17 @@ public class LinearModelMatrix extends CalculationNode implements Function {
 
     public Input<BooleanParameter> logTransformInput = new Input<>("logTransform", "Optional parameter, if set to 1, then the values in the rateMatrix will be log transformed before use. If this is not done, then the provided values need to already be log transformed.");
 
-
-    /*
-    public Input<List<RealParameter>> rateMatricesScaleFactorsInput = new Input<>("rateMatrixScaleFactor",
-            "Optional number by which all items in the migration matrix will be evenly multiplied.", new ArrayList<RealParameter>());
-    //List of rateMatrix scale factors
-    */
-
-
     public Input<RealParameter> lambdaInput = new Input<>("lambdaParameter", "Specify a parameter with two starting values for lambda (the coefficient)", Input.Validate.REQUIRED);
 
     public Input<BooleanParameter> deltaInput = new Input<>("deltaParameter", "Specify a parameter with two starting values for delta (the indicator variables)", Input.Validate.REQUIRED);
 
-    protected int numTimes;
-    protected List<RealParameter> rateMatricesTemp;
+        protected List<RealParameter> rateMatricesTemp;
     protected Double[] cachedTotalMatrix;
+    protected Double[] oldCachedTotalMatrix;
     protected ArrayList<ArrayList<Double>> rateMatricesKeep;
     protected boolean needsUpdate;
-    //protected List<RealParameter> rateMatricesScaleFactors;
     protected RealParameter lambdaParameter;
-    protected RealParameter oldLambdaParameter;
     protected BooleanParameter deltaParameter;
-    //protected String calcTiming;
-    //protected int calcTimeCount;
 
     public int getDimension(){
         return rateMatricesInput.get().size(); //Returns number of matrices provided
@@ -62,14 +50,20 @@ public class LinearModelMatrix extends CalculationNode implements Function {
     public double getArrayValue(int dim) {
         //New setup with caching
        // System.out.println("Get Array Value");
-        if(needsUpdate) {
-           // System.out.println(" -+-+-+-+--+-+-+-+-+-+-+-+-+-+-+-+-+   Had to do maths  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-");
+
+
+        //Disable the caching
+        boolean disableCaching = false;
+
+        if(needsUpdate && ! disableCaching) {
+
+            oldCachedTotalMatrix = cachedTotalMatrix; //Save the matrix state before changing
             //Get the latest values for the delta and lambda parameters, relying on requiresRecalculation to manage when this is done (via needsUpdate)
             lambdaParameter = lambdaInput.get();
             deltaParameter = deltaInput.get();
-            needsUpdate = false; //Because now updated
+            needsUpdate = false; //Because now updated (well almost)
 
-            ArrayList<Double> tempList = new ArrayList<>();
+            ArrayList<Double> tempList = new ArrayList<>(); //This will hold the calculated values for each matrix temporarily
 
             for(int elementIndex = 0; elementIndex < rateMatricesKeep.get(0).size(); elementIndex++){
 
@@ -88,10 +82,30 @@ public class LinearModelMatrix extends CalculationNode implements Function {
             }
             cachedTotalMatrix = new Double[tempList.size()];
            tempList.toArray(cachedTotalMatrix);
-
+            //return cachedTotalMatrix[dim].doubleValue();
 
         }
-        return cachedTotalMatrix[dim].doubleValue();
+
+        if(!needsUpdate && !disableCaching) {
+            return cachedTotalMatrix[dim].doubleValue();
+        }
+
+        if (disableCaching){
+            //Just calculate the one combined element once
+            double totalValue = 0;
+            for (int i = 0; i < rateMatricesKeep.size(); i++) { //For each matrix provided
+                double lambda = lambdaInput.get().getArrayValue(i);
+                double delta = deltaParameter.getArrayValue(i); //getArrayValue of boolean parameter returns a double
+
+                double term = lambda * delta * rateMatricesKeep.get(i).get(dim);
+
+
+                totalValue = totalValue + term;
+            }
+
+            return Math.exp(totalValue);
+
+        }
 
 
         /*
@@ -126,6 +140,7 @@ public class LinearModelMatrix extends CalculationNode implements Function {
 
         return Math.exp(totalValue);
         */
+        return 101003030; //Just cause we need to return something regardless
     }
 
     public RealParameter getMatrix(int index){
@@ -140,7 +155,6 @@ public class LinearModelMatrix extends CalculationNode implements Function {
         rateMatricesKeep = new ArrayList<ArrayList<Double>>();
         lambdaParameter = lambdaInput.get();
         deltaParameter = deltaInput.get();
-        //rateMatricesScaleFactors = rateMatricesScaleFactorsInput.get();
 
         //Check that the XML file provides one (and only one) value for both the lambda and delta parameters for each of the matrices provided. If not, cannot proceed.
         if (lambdaInput.get().getDimension() != rateMatricesInput.get().size() || deltaInput.get().getDimension() != rateMatricesInput.get().size()){
@@ -189,14 +203,6 @@ public class LinearModelMatrix extends CalculationNode implements Function {
             }
         }
 
-        /*
-        //Check that if there are any rateMatricesScaleFactors provided, that there are the right number of them
-        if(rateMatricesScaleFactorsInput.get() != null && rateMatricesScaleFactorsInput.get().size() != 0 && rateMatricesScaleFactorsInput.get().size() != rateMatricesInput.get().size()){
-            System.out.println("If you are using scaleFactors for a rateMatrix, you must provide the LinearModelMatrix with a rateMatrixScaleFactor for each of the rate matrices you provide.");
-            throw new IndexOutOfBoundsException("Wrong number of rateMatrixScaleFactor values provided for LinearModelMatrix");
-        }
-        */
-
         //Do the things which are usually done for rateMatrix in SCMigrationModel
 
         /*
@@ -204,13 +210,18 @@ public class LinearModelMatrix extends CalculationNode implements Function {
             rateMatrices.get(i).setLower(Math.max(rateMatrices.get(i).getLower(), 0.0));
         }
         */
+
         needsUpdate = true;
         System.out.println("Successfully initialised LinearModelMatrix.");
     }
 
     @Override
     public boolean requiresRecalculation(){
+       needsUpdate = true;
+       return true;
+        /*
         if (lambdaInput.get().somethingIsDirty()){
+
             needsUpdate = true;
             return true;
         }
@@ -218,10 +229,26 @@ public class LinearModelMatrix extends CalculationNode implements Function {
             needsUpdate = true;
             return true;
         }
-
-        return false;
+        */
     }
 
+    @Override
+    protected void restore() {
+        //System.out.println("Called restore"); //Just to see how often this happens, to see how much efficiency this gives us it did happen quite commonly!
+        Double[] tempSwapCachedTotalMatrix = oldCachedTotalMatrix;
+        oldCachedTotalMatrix = cachedTotalMatrix;
+        cachedTotalMatrix = tempSwapCachedTotalMatrix;
+
+        //needsUpdate = true; // Can make this more efficient by not throwing away the old version of the calculated array
+        super.restore();
+    }
+
+
+    ///Might need to override store() as well, although less clear
+    @Override
+    protected void store(){
+        super.store();
+    }
 
 
 }
