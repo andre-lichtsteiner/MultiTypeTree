@@ -263,6 +263,8 @@ public class MatrixSwitch extends CalculationNode implements Function {
         mat_1_minimum = mat_1_minimum + addAmount_1;
 
 
+        double new_scale_max = mat_0_maximum * mat_1_maximum;
+        double new_scale_min = new_scale_max / 1000;
 
         for (int i = 0; i < rateMatricesTemp.size(); i++) {
             System.out.println("\nTransformed Matrix " + i);
@@ -273,13 +275,26 @@ public class MatrixSwitch extends CalculationNode implements Function {
                 //For each element in that matrix
                 double elementValue = rateMatricesTemp.get(i).getArrayValue(j);
                 if (i == 0){
-                    elementValue = (((elementValue - mat_0_minimum) * (mat_1_maximum - mat_1_minimum))/(mat_0_maximum - mat_0_minimum)) + mat_1_minimum;
+
+                    elementValue = (((elementValue - mat_0_minimum) * (new_scale_max - new_scale_min)) /(mat_0_maximum - mat_0_minimum) + new_scale_min );
 
 
+
+                    //elementValue = (((elementValue - mat_0_minimum) * (mat_1_maximum - mat_1_minimum))/(mat_0_maximum - mat_0_minimum)) + mat_1_minimum;
+                    //Problem here because new range can be zero - ie. it currently does nothing when given a flat matrix as the second matrix
+
+                   // elementValue = (elementValue * mat_1_maximum) / (mat_0_maximum * mat_1_maximum);
                     //elementValue = (addAmount_0 + elementValue) * (mat_1_maximum/mat_0_maximum);
                 }
                 else if(i == 1){
-                    elementValue = (addAmount_1 + elementValue); //We scaled the other matrix to match this one
+                    //elementValue = (addAmount_1 + elementValue); //We scaled the other matrix to match this one
+                   // elementValue = (elementValue * mat_0_maximum) / (mat_0_maximum * mat_1_maximum);
+
+                    elementValue = (((elementValue - mat_1_minimum) * (new_scale_max - new_scale_min)) /(mat_1_maximum - mat_1_minimum) + new_scale_min );
+                }
+                else{
+                    throw new IllegalArgumentException("Wrong");
+
                 }
 
                 System.out.print(elementValue + " ");
