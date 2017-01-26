@@ -273,7 +273,7 @@ public class MatrixSwitch extends CalculationNode implements Function {
                 //For each element in that matrix
                 double elementValue = rateMatricesTemp.get(i).getArrayValue(j);
                 if (i == 0){
-                    elementValue = (((elementValue - mat_0_minimum) * (mat_0_maximum - mat_0_minimum))/(mat_0_maximum - mat_0_minimum)) + mat_1_minimum;
+                    elementValue = (((elementValue - mat_0_minimum) * (mat_1_maximum - mat_1_minimum))/(mat_0_maximum - mat_0_minimum)) + mat_1_minimum;
 
 
                     //elementValue = (addAmount_0 + elementValue) * (mat_1_maximum/mat_0_maximum);
