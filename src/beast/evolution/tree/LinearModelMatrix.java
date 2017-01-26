@@ -9,6 +9,7 @@ import beast.core.parameter.RealParameter;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.DoubleBinaryOperator;
 
 /**
  * Created by andre on 18/01/17.
@@ -29,8 +30,14 @@ public class LinearModelMatrix extends CalculationNode implements Function {
     public Input<BooleanParameter> deltaInput = new Input<>("deltaParameter", "Specify a parameter with two starting values for delta (the indicator variables)", Input.Validate.REQUIRED);
 
         protected List<RealParameter> rateMatricesTemp;
-    protected Double[] cachedTotalMatrix;
-    protected Double[] oldCachedTotalMatrix;
+    //protected Double[] cachedTotalMatrix;
+    //protected Double[] oldCachedTotalMatrix;
+    protected ArrayList<Double> cachedTotalMatrix;
+    protected ArrayList<Double> oldCachedTotalMatrix;
+    protected int arrayValueCallCount;
+    protected double avgNumer;
+    protected int avgDenom;
+
     protected ArrayList<ArrayList<Double>> rateMatricesKeep;
     protected boolean needsUpdate;
     protected RealParameter lambdaParameter;
@@ -46,48 +53,72 @@ public class LinearModelMatrix extends CalculationNode implements Function {
     }
 
 
+    private ArrayList<Double> recalculateMatrix(){
+
+        if (cachedTotalMatrix != null){
+            oldCachedTotalMatrix = (ArrayList<Double>) cachedTotalMatrix.clone(); //Save the matrix state before changing
+        }
+
+        //Get the latest values for the delta and lambda parameters, relying on requiresRecalculation to manage when this is done (via needsUpdate)
+        lambdaParameter = lambdaInput.get();
+        deltaParameter = deltaInput.get();
+
+        ArrayList<Double> tempList = new ArrayList<>(); //This will hold the calculated values for each matrix temporarily
+
+        for(int elementIndex = 0; elementIndex < rateMatricesKeep.get(0).size(); elementIndex++){
+            //For each element in the matrices
+
+            double totalElementValue = 0;
+
+            for(int matrixIndex = 0; matrixIndex < rateMatricesKeep.size(); matrixIndex++){
+                //For each component matrix
+
+                double delta = deltaParameter.getArrayValue(matrixIndex);
+
+                if(deltaParameter.getArrayValue(matrixIndex) != 0){
+                    double term = lambdaParameter.getArrayValue(matrixIndex) * delta * rateMatricesKeep.get(matrixIndex).get(elementIndex);
+                    totalElementValue = totalElementValue + term;
+                }
+            }
+            tempList.add(Math.exp(totalElementValue));
+        }
+
+
+        //cachedTotalMatrix = new Double[tempList.size()];
+        //cachedTotalMatrix = tempList;
+        return tempList;
+    }
+
     @Override
     public double getArrayValue(int dim) {
-        //New setup with caching
-       // System.out.println("Get Array Value");
-
 
         //Disable the caching
         boolean disableCaching = false;
 
         if(needsUpdate && ! disableCaching) {
 
-            oldCachedTotalMatrix = cachedTotalMatrix; //Save the matrix state before changing
-            //Get the latest values for the delta and lambda parameters, relying on requiresRecalculation to manage when this is done (via needsUpdate)
-            lambdaParameter = lambdaInput.get();
-            deltaParameter = deltaInput.get();
-            needsUpdate = false; //Because now updated (well almost)
-
-            ArrayList<Double> tempList = new ArrayList<>(); //This will hold the calculated values for each matrix temporarily
-
-            for(int elementIndex = 0; elementIndex < rateMatricesKeep.get(0).size(); elementIndex++){
-
-                double totalElementValue = 0;
-
-                for(int matrixIndex = 0; matrixIndex < rateMatricesKeep.size(); matrixIndex++){
-
-                    double delta = deltaParameter.getArrayValue(matrixIndex);
-
-                    if(deltaParameter.getArrayValue(matrixIndex) != 0){
-                        double term = lambdaParameter.getArrayValue(matrixIndex) * delta * rateMatricesKeep.get(matrixIndex).get(dim); //  * scaleFactor; //note that more generally we probably want the log transform to be done at a different stage
-                        totalElementValue = totalElementValue + term;
-                    }
-                }
-                tempList.add(Math.exp(totalElementValue));
-            }
-            cachedTotalMatrix = new Double[tempList.size()];
-           tempList.toArray(cachedTotalMatrix);
-            //return cachedTotalMatrix[dim].doubleValue();
+            cachedTotalMatrix = recalculateMatrix();
+            needsUpdate = false; //Because now recalculated
 
         }
 
         if(!needsUpdate && !disableCaching) {
-            return cachedTotalMatrix[dim].doubleValue();
+
+            /*
+            arrayValueCallCount++;
+            if (arrayValueCallCount == 100000){
+                double curValue = cachedTotalMatrix.get(dim);
+                avgNumer = avgNumer + curValue;
+                avgDenom++;
+
+               // System.out.println("Average array value: " + (avgNumer/avgDenom));
+
+                arrayValueCallCount = 0;
+
+            }
+            */
+
+           return cachedTotalMatrix.get(dim);// .doubleValue();
         }
 
         if (disableCaching){
@@ -206,10 +237,18 @@ public class LinearModelMatrix extends CalculationNode implements Function {
         //Do the things which are usually done for rateMatrix in SCMigrationModel
 
         /*
+        Looks like the purpose of this is to not have any negative rates in the matrix
+
         for (int i = 0; i < rateMatrices.size(); i++){
             rateMatrices.get(i).setLower(Math.max(rateMatrices.get(i).getLower(), 0.0));
         }
         */
+
+        avgDenom = 0;
+        avgNumer = 0;
+
+        //have to have some initial value for cachedTotalMatrix..
+        cachedTotalMatrix = recalculateMatrix();
 
         needsUpdate = true;
         System.out.println("Successfully initialised LinearModelMatrix.");
@@ -235,7 +274,8 @@ public class LinearModelMatrix extends CalculationNode implements Function {
     @Override
     protected void restore() {
         //System.out.println("Called restore"); //Just to see how often this happens, to see how much efficiency this gives us it did happen quite commonly!
-        Double[] tempSwapCachedTotalMatrix = oldCachedTotalMatrix;
+        //Double[] tempSwapCachedTotalMatrix = oldCachedTotalMatrix;
+        ArrayList<Double> tempSwapCachedTotalMatrix = oldCachedTotalMatrix;
         oldCachedTotalMatrix = cachedTotalMatrix;
         cachedTotalMatrix = tempSwapCachedTotalMatrix;
 
