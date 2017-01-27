@@ -70,7 +70,7 @@
 <map name="InverseGamma">beast.math.distributions.InverseGamma</map>
 <map name="OneOnX">beast.math.distributions.OneOnX</map>
 
-<run chainLength="10000000" id="mcmc" spec="MCMC">
+<run chainLength="1000000" id="mcmc" spec="MCMC">
     <state id="state" storeEvery="10000">
       <stateNode id="Tree.t:seqs" spec="beast.evolution.tree.StructuredCoalescentMultiTypeTree">
             <typeLabel>location</typeLabel>
