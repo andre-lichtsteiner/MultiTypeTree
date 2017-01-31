@@ -40,9 +40,9 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
             "rateMatrix",
             "Migration rate matrix");
 
-    //public Input<LinearModelMatrix> linearModelMatrixInput = new Input<>("linearModel", "Optional way to use GLM to compare the rateMatrix provided with one where all rates are the same.", Validate.XOR, rateMatrixInput); //Might be good to have Validate.XOR on this with rateMatrix
+    public Input<LinearModelMatrix> linearModelMatrixInput = new Input<>("linearModel", "Optional way to use GLM to compare the rateMatrix provided with one where all rates are the same.", Validate.XOR, rateMatrixInput); //Might be good to have Validate.XOR on this with rateMatrix
 
-    public Input<MatrixSwitch> matrixSwitchInput = new Input<>("matrixSwitch", "Uses bits in a boolean parameter to control which rateMatrix is used by SCMigrationModel.");
+    //public Input<MatrixSwitch> matrixSwitchInput = new Input<>("matrixSwitch", "Uses bits in a boolean parameter to control which rateMatrix is used by SCMigrationModel.");
 
 
     public Input<RealParameter> popSizesInput = new Input<>(
@@ -109,7 +109,7 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
         //Split depending on type of matrix model
 
 
-        /* previously
+        //
         if (linearModelMatrixInput.get() != null){
             linearModelMatrix = linearModelMatrixInput.get();
             //This should now be used instead of rateMatrix wherever rateMatrix is used
@@ -133,7 +133,7 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
             }
 
         }
-        */
+        /*
         if(matrixSwitchInput.get() != null){
             matrixSwitch = matrixSwitchInput.get();
 
@@ -185,6 +185,7 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
                             + " migration rate matrix.");
             }
         }
+        */
 
         dirty = true;
         updateMatrices();
@@ -269,8 +270,8 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
         if (i==j)
             return 0;
 
-        if(matrixSwitch != null){
-            return matrixSwitch.getArrayValue(getArrayOffset(i, j));
+        if(linearModelMatrix != null){
+            return linearModelMatrix.getArrayValue(getArrayOffset(i, j));
         }
         else {
             return rateMatrix.getValue(getArrayOffset(i, j));
@@ -297,6 +298,16 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
             return 0.0;
         }
         else{
+
+            if (linearModelMatrix != null){
+                return linearModelMatrix.getArrayValue(offset);
+
+            }
+            else{
+                return rateMatrix.getArrayValue(offset);
+            }
+
+            /*
             if (matrixSwitch != null && rateMatrixScaleFactor != null){
                 return rateMatrixScaleFactorInput.get().getValue() * matrixSwitch.getArrayValue(offset);
             }
@@ -309,6 +320,7 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
             else{
                 return rateMatrix.getArrayValue(offset);
             }
+            */
         }
 
     }

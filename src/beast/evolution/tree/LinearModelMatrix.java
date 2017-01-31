@@ -1,9 +1,6 @@
 package beast.evolution.tree;
 
-import beast.core.BEASTObject;
-import beast.core.CalculationNode;
-import beast.core.Function;
-import beast.core.Input;
+import beast.core.*;
 import beast.core.parameter.BooleanParameter;
 import beast.core.parameter.RealParameter;
 
@@ -18,50 +15,51 @@ public class LinearModelMatrix extends CalculationNode implements Function {
 
 
     //Must provide the model which is to be compared with the flat model
-    public Input<List<RealParameter>> rateMatricesInput = new Input<>(
+    public Input<RealParameter> rateMatrixInput = new Input<>(
             "rateMatrix",
-            "Migration rate matrices",
-            new ArrayList<RealParameter>(), Input.Validate.REQUIRED);
+            "Migration rate matrices");
 
-    public Input<BooleanParameter> logTransformInput = new Input<>("logTransform", "Optional parameter, if set to 1, then the values in the rateMatrix will be log transformed before use. If this is not done, then the provided values need to already be log transformed.");
+    public Input<RealParameter> switchInput = new Input<>("switch", "A boolean parameter to determine whether or not the provided rateMatrix is included in the calculation at a particular point.");
 
-    public Input<RealParameter> lambdaInput = new Input<>("lambdaParameter", "Specify a parameter with two starting values for lambda (the coefficient)", Input.Validate.REQUIRED);
+    public Input<RealParameter> scaleFactorInput = new Input<>("scaleFactor", "Scale factor parameter which will be applied to values in the rateMatrix.");
 
-    public Input<BooleanParameter> deltaInput = new Input<>("deltaParameter", "Specify a parameter with two starting values for delta (the indicator variables)", Input.Validate.REQUIRED);
+    protected double[] rateMatrix;
 
-        protected List<RealParameter> rateMatricesTemp;
-    //protected Double[] cachedTotalMatrix;
-    //protected Double[] oldCachedTotalMatrix;
-    protected ArrayList<Double> cachedTotalMatrix;
-    protected ArrayList<Double> oldCachedTotalMatrix;
-    protected int arrayValueCallCount;
-    protected double avgNumer;
-    protected int avgDenom;
+    protected double[] cachedMatrix;
+    protected double[] oldCachedMatrix;
 
-    protected ArrayList<ArrayList<Double>> rateMatricesKeep;
+    protected double switchValue;
+    protected double scaleFactorValue;
+
+    protected double oldSwitchValue;
+    protected double oldScaleFactorValue;
+
+
+
+    // protected ArrayList<Double> cachedTotalMatrix;
+    // protected ArrayList<Double> oldCachedTotalMatrix;
+
+    //protected ArrayList<ArrayList<Double>> rateMatricesKeep;
     protected boolean needsUpdate;
-    protected RealParameter lambdaParameter;
-    protected BooleanParameter deltaParameter;
+    //protected RealParameter lambdaParameter;
+    //protected BooleanParameter deltaParameter;
 
     public int getDimension(){
-        return rateMatricesInput.get().size(); //Returns number of matrices provided
+        return rateMatrix.length; //Returns number of elements in provided matrix
 
     }
 
     public double getArrayValue(){
-        return rateMatricesInput.get().size(); //Need to determine what I should return here *TODO-----
+        return rateMatrix.length; //Need to determine what I should return here *TODO-----
     }
 
-
+    /*
     private ArrayList<Double> recalculateMatrix(){
 
         if (cachedTotalMatrix != null){
             oldCachedTotalMatrix = (ArrayList<Double>) cachedTotalMatrix.clone(); //Save the matrix state before changing
         }
 
-        //Get the latest values for the delta and lambda parameters, relying on requiresRecalculation to manage when this is done (via needsUpdate)
-        lambdaParameter = lambdaInput.get();
-        deltaParameter = deltaInput.get();
 
         ArrayList<Double> tempList = new ArrayList<>(); //This will hold the calculated values for each matrix temporarily
 
@@ -88,10 +86,44 @@ public class LinearModelMatrix extends CalculationNode implements Function {
         //cachedTotalMatrix = tempList;
         return tempList;
     }
+    */
 
     @Override
     public double getArrayValue(int dim) {
 
+        if (needsUpdate){
+            switchValue = switchInput.get().getArrayValue(0);
+            scaleFactorValue = scaleFactorInput.get().getValue();
+
+            if (cachedMatrix != null){
+                oldCachedMatrix = cachedMatrix.clone();
+            }
+
+            cachedMatrix = new double[rateMatrix.length];
+
+            for (int i = 0; i < rateMatrix.length; i++){
+                cachedMatrix[i] = scaleFactorValue * Math.pow(rateMatrix[i], switchValue);
+            }
+
+            needsUpdate = false;
+        }
+
+       // double switchValue = switchInput.get().getArrayValue(0);
+       // double scaleFactorValue = scaleFactorInput.get().getValue();
+
+        return cachedMatrix[dim];
+        //return scaleFactorValue * Math.pow(rateMatrix[dim], switchValue);
+        /*
+        if (switchValue == 0){
+            return scaleFactorValue;
+        }
+        else{
+            return rateMatrix[dim] * scaleFactorValue;
+        }
+        */
+
+
+        /*
         //Disable the caching
         boolean disableCaching = false;
 
@@ -104,19 +136,7 @@ public class LinearModelMatrix extends CalculationNode implements Function {
 
         if(!needsUpdate && !disableCaching) {
 
-            /*
-            arrayValueCallCount++;
-            if (arrayValueCallCount == 100000){
-                double curValue = cachedTotalMatrix.get(dim);
-                avgNumer = avgNumer + curValue;
-                avgDenom++;
 
-               // System.out.println("Average array value: " + (avgNumer/avgDenom));
-
-                arrayValueCallCount = 0;
-
-            }
-            */
 
            return cachedTotalMatrix.get(dim);// .doubleValue();
         }
@@ -137,118 +157,46 @@ public class LinearModelMatrix extends CalculationNode implements Function {
             return Math.exp(totalValue);
 
         }
-
-
-        /*
-        numTimes++;
-        System.out.println(numTimes);
-
-        if(needsUpdate) {
-            //Get the latest values for the delta and lambda parameters, relying on requiresRecalculation to manage when this is done (via needsUpdate)
-            System.out.println("Needs update");
-            lambdaParameter = lambdaInput.get();
-            deltaParameter = deltaInput.get();
-            needsUpdate = false; //Because now sorted
-
-        }
-        double totalValue = 0;
-
-        for (int i = 0; i < rateMatricesKeep.size(); i++) { //For each matrix provided
-            double lambda = lambdaParameter.getArrayValue(i);
-            double delta = deltaParameter.getArrayValue(i); //getArrayValue of boolean parameter returns a double
-
-            //Each matrix may have its own scaleFactor
-            //double scaleFactor = 1; //Leave this as 1 if no scaleFactor provided
-            //if (rateMatricesScaleFactorsInput.get() != null && rateMatricesScaleFactorsInput.get().size() != 0){
-            //   scaleFactor = rateMatricesScaleFactorsInput.get().get(i).getValue();
-            //}
-
-            double term = lambda * delta * rateMatricesKeep.get(i).get(dim); //  * scaleFactor; //note that more generally we probably want the log transform to be done at a different stage
-
-
-            totalValue = totalValue + term;
-        }
-
-        return Math.exp(totalValue);
         */
-        return 101003030; //Just cause we need to return something regardless
+
+
     }
 
     public RealParameter getMatrix(int index){
-        System.out.println("GETTING THE WRONG MATRIX HERE FOR NOW"); //Probably fine (mostly) because currently only used for working out if the matrix is square
-        return rateMatricesTemp.get(index);
+        System.out.println("NOT SURE IF THIS IS WORKING?"); //Probably fine (mostly) because currently only used for working out if the matrix is square
+
+        Double[] tempArray = new Double[rateMatrix.length];
+        for (int i = 0; i < rateMatrix.length; i++){
+            tempArray[i] = rateMatrix[i];
+        }
+
+        return new RealParameter(tempArray);
+
     }
 
     public void initAndValidate(){
         //Setup initial state of this Function
 
-        rateMatricesTemp = rateMatricesInput.get();
-        rateMatricesKeep = new ArrayList<ArrayList<Double>>();
-        lambdaParameter = lambdaInput.get();
-        deltaParameter = deltaInput.get();
+        RealParameter rateMatrixStart = rateMatrixInput.get();
 
-        //Check that the XML file provides one (and only one) value for both the lambda and delta parameters for each of the matrices provided. If not, cannot proceed.
-        if (lambdaInput.get().getDimension() != rateMatricesInput.get().size() || deltaInput.get().getDimension() != rateMatricesInput.get().size()){
-            System.out.println("You must provide the LinearModelMatrix with one value for both the lambdaParameter and the deltaParameter for each of the rate matrices you provide.");
-            throw new IndexOutOfBoundsException("Wrong number of values provided to lambdaParameter or deltaParameter for LinearModelMatrix");
+        //Now transform the values in the matrix to be centred around 1
+        //First get the mean of the values
+        double startTotal = 0;
+        for (int i = 0; i < rateMatrixStart.getDimension(); i++){
+            startTotal = startTotal + rateMatrixStart.getArrayValue(i);
         }
+        double startMean = startTotal / rateMatrixStart.getDimension();
 
-        if(logTransformInput.get() != null){
-            //This has been set in the XML by the user
-            if(logTransformInput.get().getDimension() != rateMatricesInput.get().size()){
-                System.out.println("You must provide the LinearModelMatrix with one value for logTransform each of the rate matrices you provide.");
-                throw new IndexOutOfBoundsException("Wrong number of values provided to logTransform for LinearModelMatrix");
-            }
-            else{
-                for (int i = 0; i < logTransformInput.get().getDimension(); i++){
-                    //For each matrix
-                    ArrayList<Double> current_matrix = new ArrayList<Double>();
+        double multiplier = 1 / startMean;
 
-                    if(logTransformInput.get().getArrayValue(i) == 1){
-                        //If told to do an initial log transform
-                        for (int j = 0; j < rateMatricesTemp.get(i).getDimension(); j++){
-                            current_matrix.add(Math.log(rateMatricesTemp.get(i).getArrayValue(j)));
-                        }
-                    }
-                    else{
-                        //If NOT told to do an initial log transform
-                        for (int j = 0; j < rateMatricesTemp.get(i).getDimension(); j++){
-                            current_matrix.add(rateMatricesTemp.get(i).getArrayValue(j));
-                        }
-                    }
-
-
-                    rateMatricesKeep.add(current_matrix);
-
-
-                }
-            }
+        //Store the re-centred rateMatrix and print it out
+        System.out.println("Re-centred rate matrix:");
+        rateMatrix = new double[rateMatrixStart.getDimension()]; //Make new array
+        for (int i = 0; i < rateMatrixStart.getDimension(); i++){
+            rateMatrix[i] = Math.max(0.0, rateMatrixStart.getArrayValue(i) * multiplier); //Multiply each rateMatrix value by the multiplier (and make sure that the value is never negative because that doesn't work)
+            System.out.print(rateMatrix[i] + " ");
         }
-        else{
-
-            for (int i = 0; i < rateMatricesTemp.size(); i++) {
-                ArrayList<Double> current_matrix = new ArrayList<Double>();
-                for (int j = 0; j < rateMatricesTemp.get(i).getDimension(); j++) {
-                    current_matrix.add(rateMatricesTemp.get(i).getArrayValue(j));
-                }
-            }
-        }
-
-        //Do the things which are usually done for rateMatrix in SCMigrationModel
-
-        /*
-        Looks like the purpose of this is to not have any negative rates in the matrix
-
-        for (int i = 0; i < rateMatrices.size(); i++){
-            rateMatrices.get(i).setLower(Math.max(rateMatrices.get(i).getLower(), 0.0));
-        }
-        */
-
-        avgDenom = 0;
-        avgNumer = 0;
-
-        //have to have some initial value for cachedTotalMatrix..
-        cachedTotalMatrix = recalculateMatrix();
+        System.out.println("");
 
         needsUpdate = true;
         System.out.println("Successfully initialised LinearModelMatrix.");
@@ -258,26 +206,29 @@ public class LinearModelMatrix extends CalculationNode implements Function {
     public boolean requiresRecalculation(){
        needsUpdate = true;
        return true;
-        /*
-        if (lambdaInput.get().somethingIsDirty()){
-
-            needsUpdate = true;
-            return true;
-        }
-        if(deltaInput.get().somethingIsDirty()){
-            needsUpdate = true;
-            return true;
-        }
-        */
     }
 
     @Override
     protected void restore() {
         //System.out.println("Called restore"); //Just to see how often this happens, to see how much efficiency this gives us it did happen quite commonly!
         //Double[] tempSwapCachedTotalMatrix = oldCachedTotalMatrix;
-        ArrayList<Double> tempSwapCachedTotalMatrix = oldCachedTotalMatrix;
-        oldCachedTotalMatrix = cachedTotalMatrix;
-        cachedTotalMatrix = tempSwapCachedTotalMatrix;
+
+        scaleFactorValue = oldScaleFactorValue;
+        switchValue = oldSwitchValue;
+
+        if (oldCachedMatrix != null) {
+            double[] swapMat = cachedMatrix;
+            cachedMatrix = oldCachedMatrix;
+            oldCachedMatrix = swapMat;
+        }
+        else{
+            needsUpdate = true; //Because otherwise wrong
+        }
+
+
+       // ArrayList<Double> tempSwapCachedTotalMatrix = oldCachedTotalMatrix;
+       // oldCachedTotalMatrix = cachedTotalMatrix;
+        //cachedTotalMatrix = tempSwapCachedTotalMatrix;
 
         //needsUpdate = true; // Can make this more efficient by not throwing away the old version of the calculated array
         super.restore();
