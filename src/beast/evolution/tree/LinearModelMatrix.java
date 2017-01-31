@@ -12,7 +12,7 @@ import java.util.function.DoubleBinaryOperator;
  * Created by andre on 18/01/17.
  *
  * TODO - occasionally on startup there is a StackOverflowError:
- * 
+ *
          * Exception in thread "main" java.lang.StackOverflowError
          at beast.evolution.tree.Node.getLeft(Node.java:730)
          at beast.evolution.tree.Node.toSortedNewick(Node.java:377)
