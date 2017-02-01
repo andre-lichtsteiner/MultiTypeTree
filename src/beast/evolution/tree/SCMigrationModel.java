@@ -65,6 +65,11 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
 
 
     protected RealParameter rateMatrix, popSizes;
+    protected double[] transformedPopSizes;
+    protected double[] cachedPopSizes;
+
+    protected boolean popSizesDirty;
+    protected double cachedPopSizesScaleFactor;
     protected LinearModelMatrix linearModelMatrix;
     protected MatrixSwitch matrixSwitch;
     protected BooleanParameter rateMatrixFlags;
@@ -108,6 +113,27 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
 
         //Split depending on type of matrix model
 
+        if(linearModelMatrixInput.get() != null) {
+            //Transform the popSizes array to be centred around 1
+            //First get the mean of the values
+            double startTotal = 0;
+            for (int i = 0; i < popSizes.getDimension(); i++) {
+                startTotal = startTotal + popSizes.getArrayValue(i);
+            }
+            double startMean = startTotal / popSizes.getDimension();
+
+            double multiplier = 1 / startMean;
+
+            //Store the re-centred rateMatrix and print it out
+            System.out.println("Re-centred popSizes array:");
+            transformedPopSizes = new double[popSizes.getDimension()]; //Make new array
+            for (int i = 0; i < popSizes.getDimension(); i++) {
+                transformedPopSizes[i] = Math.max(0.0, popSizes.getArrayValue(i) * multiplier); //Multiply each popSizes value by the multiplier (and make sure that the value is never negative because that doesn't work)
+                System.out.print(transformedPopSizes[i] + " ");
+            }
+            System.out.println("");
+        }
+
 
         //
         if (linearModelMatrixInput.get() != null){
@@ -115,6 +141,11 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
             //This should now be used instead of rateMatrix wherever rateMatrix is used
 
             RealParameter tempRateMatrix = linearModelMatrix.getMatrix(0); //Use the first matrix as an example
+
+            if(popSizesScaleFactor != null) {
+                cachedPopSizes = recalculatePopSizes();
+                cachedPopSizesScaleFactor = popSizesScaleFactor.getValue();
+            }
 
             if (tempRateMatrix.getDimension() == nTypes * nTypes) {
                 rateMatrixIsSquare = true;
@@ -188,6 +219,7 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
         */
 
         dirty = true;
+        popSizesDirty = true;
         updateMatrices();
     }
 
@@ -376,6 +408,7 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
 
         // Model is now dirty.
         dirty = true;
+        popSizesDirty = true;
     }
 
     /**
@@ -416,7 +449,23 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
      */
     public double getPopSize(int i) {
         if (popSizesScaleFactorInput.get() != null){
-            return popSizes.getArrayValue(i) * popSizesScaleFactorInput.get().getValue();
+            //Changed this recently
+            if (linearModelMatrix != null){
+                //Is somewhat expensive to do this every time getPopSize is called (which is very many times)
+                if (popSizesDirty){
+                    //Recalculate the popSizes array
+                    cachedPopSizes = recalculatePopSizes();
+                    popSizesDirty = false;
+                }
+                return cachedPopSizes[i];
+
+            }
+            else{
+                return popSizes.getArrayValue(i) * popSizesScaleFactorInput.get().getValue();
+            }
+
+            //Old value below:
+            //return popSizes.getArrayValue(i) * popSizesScaleFactorInput.get().getValue();
         }
         else{
             return popSizes.getArrayValue(i);
@@ -432,6 +481,26 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
     public void setPopSize(int i, double newSize) {
         popSizes.setValue(i, newSize);
         dirty = true;
+    }
+
+    protected double[] recalculatePopSizes(){
+
+         double[] newPopSizes = new double[popSizes.getDimension()];
+
+        popSizesScaleFactor = popSizesScaleFactorInput.get();
+        double popSizesScaleFactorValue = popSizesScaleFactor.getValue();
+        if (cachedPopSizesScaleFactor != popSizesScaleFactorValue) {
+            double switchParameterValue = linearModelMatrix.getSwitchInput().get().getValue();
+
+            for (int i = 0; i < popSizes.getDimension(); i++) {
+                newPopSizes[i] = popSizesScaleFactorValue * Math.pow(transformedPopSizes[i], switchParameterValue);
+            }
+
+            return newPopSizes;
+        }
+        else{
+            return cachedPopSizes; //ie. don't recalculate anything, because no change (this assumes that switch parameter doesn't change!)
+        }
     }
 
     @Override
@@ -540,12 +609,14 @@ public class SCMigrationModel extends CalculationNode implements MigrationModel 
     protected boolean requiresRecalculation() {
         // we only get here if something is dirty
         dirty = true;
+        popSizesDirty = true;
         return true;
     }
 
     @Override
     protected void restore() {
         dirty = true;
+        popSizesDirty = true;
         super.restore();
     }
 

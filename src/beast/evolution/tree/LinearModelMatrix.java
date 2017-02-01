@@ -58,6 +58,11 @@ public class LinearModelMatrix extends CalculationNode implements Function {
 
     }
 
+    public Input<RealParameter> getSwitchInput(){
+
+        return switchInput;
+    }
+
     public double getArrayValue(){
         return rateMatrix.length; //Need to determine what I should return here *TODO-----
     }
